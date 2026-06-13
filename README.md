@@ -3,22 +3,23 @@
 ---
 
 ## 🚀 Project Overview
-This is the **modern, API-driven version** of the E-Sports Tournament Management System. It uses a **Python FastAPI** backend to manage the database and serve API requests, and a vanilla **HTML/CSS/JS** frontend that communicates with the API.
+This is the **modern, API-driven version** of the E-Sports Tournament Management System. It features a **Python FastAPI** backend to manage database transactions and serve API requests, paired with a vanilla **HTML/CSS/JS** frontend that communicates with the API. 
 
-This system allows the management of:
-- Players 👤
-- Teams 🏆
-- Matches ⚔️
-- Tournaments 🗓️
-- Results 📊
-- Sponsors 🤝
+The application is styled with a premium, Zinc/Violet dark theme using the **Inter** font family globally and Lucide SVG icons.
+
+### Key Features
+- **Dual-Role Authentication Gate**: Strictly requires login for both roles to access the application.
+  - **Admin**: Full privileges (creation, scheduling, score logging, and system configurations).
+  - **Regular User**: View-only mode for browsing leagues, rosters, and schedules (creation forms and action links are hidden).
+- **Admin Control Center**: A tabbed management panel (`settings.html`) that consolidates all creation and registration forms (Tournaments, Teams, Players, Matches, Sponsors) into a single admin settings interface.
+- **Scoreboard wrapping layout protection**: Score badges utilize layout wrap prevention (`whitespace-nowrap`) to ensure double-digit score numbers display correctly.
 
 ---
 
 ## 🖥️ Technologies Used
 - **Backend:** Python 3.8+, FastAPI, SQLAlchemy (Async), Uvicorn, aiomysql
 - **Database:** MySQL
-- **Frontend:** HTML, CSS, JavaScript (Vanilla)
+- **Frontend:** HTML, CSS, JavaScript (Vanilla), Tailwind CDN, Lucide CDN
 
 ---
 
@@ -26,15 +27,16 @@ This system allows the management of:
 ```bash
 esports_python_app/
 │── backend/             # FastAPI backend source code
-│   ├── main.py          # FastAPI application setup
-│   ├── database.py      # Database connection setup
-│   ├── models.py        # SQLAlchemy models
-│   ├── schemas.py       # Pydantic models for validation
-│   └── routes.py        # API endpoints
+│   ├── main.py          # FastAPI application startup & DB seeding
+│   ├── database.py      # Async database connection setup
+│   ├── models.py        # SQLAlchemy models (includes RegularUser & AdminUser)
+│   ├── schemas.py       # Pydantic schemas (returns token role details)
+│   └── routes.py        # API routing (includes role verification logic)
 │── frontend/            # HTML/JS frontend pages
-│   ├── css/             # Stylesheets
-│   ├── js/              # Client-side JavaScript
-│   └── *.html           # View templates
+│   ├── css/             # Stylesheets (loaded with Inter font family import)
+│   ├── js/              # Client-side JavaScript (includes app.js checkAuth)
+│   ├── settings.html    # Consolidated Admin Settings page
+│   └── *.html           # Read-only lists & detail view templates
 │── requirements.txt     # Python dependencies
 └── run_project.bat      # Quick-launch batch file for Windows
 ```
@@ -47,7 +49,7 @@ esports_python_app/
 1. Start your local MySQL server (e.g., using **XAMPP**, **WampServer**, or **Laragon**).
 2. Open **phpMyAdmin** (`http://localhost/phpmyadmin`) or any SQL client.
 3. Create an empty database named `esports_tournament`.
-*(Note: The FastAPI backend will automatically create all the necessary tables when it starts up.)*
+*(Note: The FastAPI backend will automatically create all the necessary tables and seed demo users on startup.)*
 
 ### Step 2: Set Up the Backend Environment
 1. Open a terminal or command prompt in the `esports_python_app` directory.
@@ -67,7 +69,7 @@ esports_python_app/
 
 #### Option A: Using the Batch File (Windows Only - Recommended)
 1. Double-click the **`run_project.bat`** file located in the `esports_python_app` directory.
-   - This script will automatically activate the virtual environment, start the FastAPI backend server on port 8000, and open the frontend dashboard in your default browser.
+   - This script will automatically start the FastAPI backend server on port 8000 and open the login page (`admin.html`) in your default browser.
 
 #### Option B: Manual Start (All Operating Systems)
 1. **Start the Backend:**
@@ -78,14 +80,17 @@ esports_python_app/
    ```
    *The backend API will be available at `http://127.0.0.1:8000`.*
 2. **Open the Frontend:**
-   Open the `frontend/index.html` file directly in your preferred web browser.
+   Open `frontend/admin.html` in your web browser to log in and access the system.
 
 ---
 
-### Demo Admin Credentials
-Once the frontend is running, you can log in to the admin panel using the following demo credentials (if authentication is configured in the database):
-- **Username:** `admin`
-- **Password:** `admin123`
+### Demo Portal Credentials
+The startup database seeding routine automatically creates two default users for demo purposes:
+
+| Role | Username | Password | Privileges |
+| :--- | :--- | :--- | :--- |
+| **Admin** | `admin` | `admin123` | Full Read/Write & Admin Settings access |
+| **Regular User** | `user` | `user123` | View-only Dashboard access |
 
 ---
 
