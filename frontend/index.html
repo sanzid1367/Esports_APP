@@ -1,62 +1,151 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>E-Sports Tournament Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        background: '#09090b',
+                        foreground: '#fafafa',
+                        card: '#18181b',
+                        'card-foreground': '#fafafa',
+                        popover: '#09090b',
+                        'popover-foreground': '#fafafa',
+                        primary: '#7c3aed',
+                        'primary-foreground': '#fafafa',
+                        secondary: '#27272a',
+                        'secondary-foreground': '#fafafa',
+                        muted: '#27272a',
+                        'muted-foreground': '#a1a1aa',
+                        accent: '#27272a',
+                        'accent-foreground': '#fafafa',
+                        destructive: '#ef4444',
+                        border: '#27272a',
+                        input: '#27272a',
+                        ring: '#a78bfa'
+                    },
+                    borderRadius: {
+                        lg: '0.75rem',
+                        md: '0.5rem',
+                        sm: '0.375rem'
+                    }
+                }
+            }
+        }
+    </script>
     <link rel="stylesheet" href="./css/style.css">
+    <!-- Lucide SVG Icons Library -->
+    <script src="https://unpkg.com/lucide@latest"></script>
 </head>
-<body>
-    <header>
-        <h1>E-Sports Tournament Manager</h1>
-        <div id="auth-status" style="float: right; margin-right: 20px; margin-top: -40px;">
-            <a href="admin.html" style="color: white; text-decoration: none;">Admin Login</a>
+<body class="bg-zinc-950 text-zinc-50 min-h-screen flex flex-col">
+    <!-- Header -->
+    <header class="sticky top-0 z-50 backdrop-blur-md bg-zinc-950/80 border-b border-zinc-800 px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="size-9 rounded-lg bg-violet-600/10 border border-violet-500/30 flex items-center justify-center font-bold text-violet-400 shadow-sm">
+                <i data-lucide="trophy" class="size-5"></i>
+            </div>
+            <h1 class="text-xl font-bold tracking-tight text-zinc-100">E-Sports Tournament Manager</h1>
         </div>
+        <div id="auth-status" class="flex items-center gap-4"></div>
     </header>
-    <div class="nav">
-        <a href="index.html">Dashboard</a>
-        <a href="tournaments.html">Tournaments</a>
-        <a href="teams.html">Teams</a>
-        <a href="players.html">Players</a>
-        <a href="matches.html">Matches</a>
-        <a href="sponsors.html">Sponsors</a>
-    </div>
-    <div class="container">
-        <h2>Dashboard</h2>
 
-        <div class="stats" id="dashboard-stats">
-            <div class="stat-card">
-                <h3 id="games-count">0</h3>
-                <p>Games</p>
-            </div>
-            <div class="stat-card">
-                <h3 id="tournaments-count">0</h3>
-                <p>Tournaments</p>
-            </div>
-            <div class="stat-card">
-                <h3 id="teams-count">0</h3>
-                <p>Teams</p>
-            </div>
-            <div class="stat-card">
-                <h3 id="players-count">0</h3>
-                <p>Players</p>
+    <!-- Navigation -->
+    <nav class="border-b border-zinc-800/50 bg-zinc-900/10 px-6 py-3">
+        <div class="max-w-6xl mx-auto flex flex-wrap gap-2 md:gap-4">
+            <a href="index.html" class="bg-zinc-800 text-zinc-50 px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5">
+                <i data-lucide="layout-dashboard" class="size-4"></i> Dashboard
+            </a>
+            <a href="tournaments.html" class="text-zinc-400 hover:text-zinc-50 px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5">
+                <i data-lucide="award" class="size-4"></i> Tournaments
+            </a>
+            <a href="teams.html" class="text-zinc-400 hover:text-zinc-50 px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5">
+                <i data-lucide="shield" class="size-4"></i> Teams
+            </a>
+            <a href="players.html" class="text-zinc-400 hover:text-zinc-50 px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5">
+                <i data-lucide="users" class="size-4"></i> Players
+            </a>
+            <a href="matches.html" class="text-zinc-400 hover:text-zinc-50 px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5">
+                <i data-lucide="swords" class="size-4"></i> Matches
+            </a>
+            <a href="sponsors.html" class="text-zinc-400 hover:text-zinc-50 px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5">
+                <i data-lucide="handshake" class="size-4"></i> Sponsors
+            </a>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-grow max-w-6xl w-full mx-auto px-4 md:px-6 py-8">
+        <div class="flex justify-between items-center mb-8">
+            <div>
+                <h2 class="text-3xl font-bold tracking-tight text-zinc-50">Dashboard</h2>
+                <p class="text-sm text-zinc-400 mt-1">Real-time statistics and overview of active gaming leagues.</p>
             </div>
         </div>
 
-        <h3>Upcoming Tournaments</h3>
-        <div id="upcoming-tournaments">
-            <p>Loading...</p>
+        <!-- Bento Grid Stats Section -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-10" id="dashboard-stats">
+            <div class="glass-card rounded-xl p-6 relative overflow-hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <span class="text-sm font-semibold text-zinc-400">Total Games</span>
+                    <i data-lucide="gamepad-2" class="size-5 text-violet-400"></i>
+                </div>
+                <h3 class="text-3xl font-extrabold text-zinc-50 tracking-tight" id="games-count">0</h3>
+            </div>
+            <div class="glass-card rounded-xl p-6 relative overflow-hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <span class="text-sm font-semibold text-zinc-400">Tournaments</span>
+                    <i data-lucide="swords" class="size-5 text-violet-400"></i>
+                </div>
+                <h3 class="text-3xl font-extrabold text-zinc-50 tracking-tight" id="tournaments-count">0</h3>
+            </div>
+            <div class="glass-card rounded-xl p-6 relative overflow-hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <span class="text-sm font-semibold text-zinc-400">Teams Registered</span>
+                    <i data-lucide="shield" class="size-5 text-violet-400"></i>
+                </div>
+                <h3 class="text-3xl font-extrabold text-zinc-50 tracking-tight" id="teams-count">0</h3>
+            </div>
+            <div class="glass-card rounded-xl p-6 relative overflow-hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <span class="text-sm font-semibold text-zinc-400">Active Players</span>
+                    <i data-lucide="users" class="size-5 text-violet-400"></i>
+                </div>
+                <h3 class="text-3xl font-extrabold text-zinc-50 tracking-tight" id="players-count">0</h3>
+            </div>
         </div>
 
-        <h3>Recent Match Results</h3>
-        <div id="recent-matches">
-            <p>Loading...</p>
+        <!-- Lists Sections -->
+        <div class="space-y-10">
+            <div>
+                <h3 class="text-xl font-bold text-zinc-50 flex items-center gap-2 mb-4">
+                    <i data-lucide="calendar" class="size-5 text-violet-500"></i>
+                    Upcoming Tournaments
+                </h3>
+                <div id="upcoming-tournaments">
+                    <div class="glass-card rounded-xl p-8 text-center text-zinc-500 italic">Loading upcoming tournaments...</div>
+                </div>
+            </div>
+
+            <div>
+                <h3 class="text-xl font-bold text-zinc-50 flex items-center gap-2 mb-4">
+                    <i data-lucide="history" class="size-5 text-violet-500"></i>
+                    Recent Match Results
+                </h3>
+                <div id="recent-matches">
+                    <div class="glass-card rounded-xl p-8 text-center text-zinc-500 italic">Loading match results...</div>
+                </div>
+            </div>
         </div>
+    </main>
 
-    </div>
-
-    <footer>
-        <!-- Replicating footer.php -->
+    <!-- Footer -->
+    <footer class="border-t border-zinc-900 bg-zinc-950/40 py-6 mt-12 text-center text-xs text-zinc-500">
         <p>&copy; 2026 E-Sports Tournament Manager. All rights reserved.</p>
     </footer>
 

@@ -1,29 +1,111 @@
 const API_BASE_URL = 'http://127.0.0.1:8000/api';
 
-// Authentication helper
+// Helper to safely render icons
+function renderIcons() {
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+}
+
+// Authentication helper with secure role-based redirect gates
 function checkAuth() {
     const token = localStorage.getItem('admin_token');
+    const role = localStorage.getItem('user_role');
+    const isLoginPage = window.location.pathname.endsWith('admin.html');
+    const isAddResultPage = window.location.pathname.endsWith('add_result.html');
+    const isSettingsPage = window.location.pathname.endsWith('settings.html');
+
+    // Redirect to login if not authenticated
+    if (!token && !isLoginPage) {
+        window.location.href = 'admin.html';
+        return;
+    }
+
+    // Redirect to dashboard if already authenticated and trying to view login
+    if (token && isLoginPage) {
+        window.location.href = 'index.html';
+        return;
+    }
+
+    // Access control: User role cannot access match result scoring form page or settings page
+    if (token && role !== 'admin' && (isAddResultPage || isSettingsPage)) {
+        window.location.href = 'index.html';
+        return;
+    }
+
     const authStatus = document.getElementById('auth-status');
     const adminFormContainer = document.getElementById('admin-form-container');
     const loginAlert = document.getElementById('login-alert');
 
     if (token) {
         if (authStatus) {
-            authStatus.innerHTML = `Welcome, Admin | <a href="#" id="logout-btn" style="color: white; text-decoration: underline;">Logout</a>`;
+            let roleBadge = '';
+            if (role === 'admin') {
+                roleBadge = `
+                    <span class="inline-flex items-center gap-1.5 rounded-md bg-violet-500/10 px-2 py-1 text-xs font-semibold text-violet-400 ring-1 ring-inset ring-violet-500/20">
+                        <i data-lucide="shield-check" class="size-3.5"></i>
+                        Admin Active
+                    </span>`;
+            } else {
+                roleBadge = `
+                    <span class="inline-flex items-center gap-1.5 rounded-md bg-blue-500/10 px-2 py-1 text-xs font-semibold text-blue-400 ring-1 ring-inset ring-blue-500/20">
+                        <i data-lucide="user" class="size-3.5"></i>
+                        User Active
+                    </span>`;
+            }
+
+            authStatus.innerHTML = `
+                <div class="flex items-center gap-3 text-sm">
+                    ${roleBadge}
+                    <a href="#" id="logout-btn" class="text-zinc-400 hover:text-zinc-50 transition-colors font-medium flex items-center gap-1">
+                        <i data-lucide="log-out" class="size-4"></i>
+                        Logout
+                    </a>
+                </div>
+            `;
             document.getElementById('logout-btn').addEventListener('click', (e) => {
                 e.preventDefault();
                 logout();
             });
         }
+
+        // Display create/schedule forms only for Admin role (for legacy page compatibility)
         if (adminFormContainer) {
-            adminFormContainer.style.display = 'block';
+            if (role === 'admin') {
+                adminFormContainer.style.display = 'block';
+                adminFormContainer.classList.add('transition-all-300');
+            } else {
+                adminFormContainer.style.display = 'none';
+            }
         }
+
+        // Hide the guest login alert box if logged in (in either role)
         if (loginAlert) {
             loginAlert.style.display = 'none';
         }
+
+        // Dynamically inject Settings link for admins in navigation bar
+        const navContainer = document.querySelector('nav > div');
+        if (navContainer && role === 'admin') {
+            if (!document.getElementById('nav-settings-link')) {
+                const settingsLink = document.createElement('a');
+                settingsLink.id = 'nav-settings-link';
+                settingsLink.href = 'settings.html';
+                settingsLink.className = isSettingsPage
+                    ? 'bg-zinc-800 text-zinc-50 px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5'
+                    : 'text-zinc-400 hover:text-zinc-50 px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5';
+                settingsLink.innerHTML = `<i data-lucide="settings" class="size-4"></i> Settings`;
+                navContainer.appendChild(settingsLink);
+            }
+        }
     } else {
         if (authStatus) {
-            authStatus.innerHTML = `<a href="admin.html" style="color: white; text-decoration: none;">Admin Login</a>`;
+            authStatus.innerHTML = `
+                <a href="admin.html" class="inline-flex items-center justify-center gap-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-zinc-50 px-3.5 py-1.5 text-xs font-semibold transition-all shadow-md">
+                    <i data-lucide="log-in" class="size-3.5"></i>
+                    Portal Login
+                </a>
+            `;
         }
         if (adminFormContainer) {
             adminFormContainer.style.display = 'none';
@@ -32,10 +114,12 @@ function checkAuth() {
             loginAlert.style.display = 'block';
         }
     }
+    renderIcons();
 }
 
 function logout() {
     localStorage.removeItem('admin_token');
+    localStorage.removeItem('user_role');
     alert('Logged out successfully!');
     window.location.reload();
 }
@@ -65,75 +149,101 @@ async function fetchDashboardStats() {
 }
 
 async function fetchUpcomingTournaments() {
+    const container = document.getElementById('upcoming-tournaments');
     try {
         const response = await fetch(`${API_BASE_URL}/upcoming-tournaments`);
         const data = await response.json();
         
-        const container = document.getElementById('upcoming-tournaments');
-        
         if (data.length > 0) {
-            let html = '<div class="card-container">';
+            let html = '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">';
             data.forEach(t => {
                 let prizePool = t.prize_pool ? `$${parseFloat(t.prize_pool).toLocaleString()}` : 'N/A';
                 html += `
-                <div class="card">
-                    <h3>${t.tournament_name}</h3>
-                    <p><strong>Game:</strong> ${t.game_name}</p>
-                    <p><strong>Dates:</strong> ${t.start_date} to ${t.end_date}</p>
-                    <p><strong>Prize Pool:</strong> ${prizePool}</p>
-                    <p><strong>Location:</strong> ${t.location || 'Online'}</p>
+                <div class="glass-card rounded-xl p-5 flex flex-col justify-between h-full">
+                    <div>
+                        <h3 class="text-lg font-bold text-zinc-50 mb-3 border-b border-zinc-800 pb-2">${t.tournament_name}</h3>
+                        <div class="space-y-2.5 text-sm text-zinc-400">
+                            <p class="flex items-center justify-between"><span class="text-zinc-500 flex items-center gap-1.5"><i data-lucide="gamepad-2" class="size-4 text-zinc-500"></i> Game:</span> <span class="text-zinc-200 font-medium">${t.game_name}</span></p>
+                            <p class="flex items-center justify-between"><span class="text-zinc-500 flex items-center gap-1.5"><i data-lucide="calendar" class="size-4 text-zinc-500"></i> Dates:</span> <span class="text-zinc-200 text-xs">${t.start_date} to ${t.end_date}</span></p>
+                            <p class="flex items-center justify-between"><span class="text-zinc-500 flex items-center gap-1.5"><i data-lucide="dollar-sign" class="size-4 text-zinc-500"></i> Prize Pool:</span> <span class="text-violet-400 font-bold">${prizePool}</span></p>
+                            <p class="flex items-center justify-between"><span class="text-zinc-500 flex items-center gap-1.5"><i data-lucide="map-pin" class="size-4 text-zinc-500"></i> Location:</span> <span class="text-zinc-200">${t.location || 'Online'}</span></p>
+                        </div>
+                    </div>
                 </div>
                 `;
             });
             html += '</div>';
             container.innerHTML = html;
         } else {
-            container.innerHTML = '<p>No upcoming tournaments found.</p>';
+            container.innerHTML = `
+                <div class="glass-card rounded-xl p-8 text-center text-zinc-500 italic">
+                    No upcoming tournaments scheduled at this time.
+                </div>
+            `;
         }
     } catch (error) {
         console.error('Error fetching upcoming tournaments:', error);
-        document.getElementById('upcoming-tournaments').innerHTML = '<p>Error loading tournaments.</p>';
+        container.innerHTML = `
+            <div class="glass-card border-rose-500/20 bg-rose-500/5 text-rose-400 rounded-xl p-6 text-center text-sm font-medium">
+                Failed to load upcoming tournaments.
+            </div>
+        `;
     }
+    renderIcons();
 }
 
 async function fetchRecentMatches() {
+    const container = document.getElementById('recent-matches');
     try {
         const response = await fetch(`${API_BASE_URL}/recent-matches`);
         const data = await response.json();
         
-        const container = document.getElementById('recent-matches');
-        
         if (data.length > 0) {
-            let html = `<table>
-                <tr>
-                    <th>Match</th>
-                    <th>Teams</th>
-                    <th>Score</th>
-                    <th>Winner</th>
-                    <th>Date</th>
-                    <th>Tournament</th>
-                </tr>`;
+            let html = `<div class="custom-table-container mt-4"><table class="custom-table">
+                <thead>
+                    <tr>
+                        <th>Stage</th>
+                        <th>Teams</th>
+                        <th>Score</th>
+                        <th>Winner</th>
+                        <th>Date & Time</th>
+                        <th>Tournament</th>
+                    </tr>
+                </thead>
+                <tbody>`;
             
             data.forEach(m => {
                 const date = new Date(m.match_date).toLocaleString();
+                const winnerBadge = m.winner_name ? 
+                    `<span class="inline-flex items-center rounded-md bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/20">${m.winner_name}</span>` : 
+                    `<span class="text-zinc-500 font-medium">-</span>`;
                 html += `<tr>
-                    <td>${m.stage}</td>
-                    <td>${m.team1_name} vs ${m.team2_name}</td>
-                    <td>${m.team1_score} - ${m.team2_score}</td>
-                    <td>${m.winner_name}</td>
-                    <td>${date}</td>
-                    <td>${m.game_name} - ${m.tournament_name}</td>
+                    <td class="font-medium text-zinc-100">${m.stage}</td>
+                    <td class="text-zinc-200 font-semibold">${m.team1_name} <span class="text-zinc-500 font-normal">vs</span> ${m.team2_name}</td>
+                    <td class="text-zinc-200 font-bold whitespace-nowrap">${m.team1_score} - ${m.team2_score}</td>
+                    <td>${winnerBadge}</td>
+                    <td class="text-zinc-400">${date}</td>
+                    <td class="text-zinc-400 text-xs">${m.game_name} - ${m.tournament_name}</td>
                 </tr>`;
             });
-            html += '</table>';
+            html += '</tbody></table></div>';
             container.innerHTML = html;
         } else {
-            container.innerHTML = '<p>No recent match results found.</p>';
+            container.innerHTML = `
+                <div class="glass-card rounded-xl p-8 text-center text-zinc-500 italic">
+                    No recent match results available.
+                </div>
+            `;
         }
     } catch (error) {
         console.error('Error fetching recent matches:', error);
-        document.getElementById('recent-matches').innerHTML = '<p>Error loading matches.</p>';
+        container.innerHTML = `
+            <div class="glass-card border-rose-500/20 bg-rose-500/5 text-rose-400 rounded-xl p-6 text-center text-sm font-medium">
+                Failed to load recent matches.
+            </div>
+        `;
     }
+    renderIcons();
 }
 
 // Games and Dropdown helpers
@@ -194,21 +304,24 @@ async function loadTeamsDropdowns() {
 
 // Tournaments Page Functions
 async function loadTournamentsList() {
+    const container = document.getElementById('tournaments-list');
     try {
         const response = await fetch(`${API_BASE_URL}/tournaments`);
         const tournaments = await response.json();
-        const container = document.getElementById('tournaments-list');
         
         if (tournaments.length > 0) {
-            let html = `<table>
-                <tr>
-                    <th>Name</th>
-                    <th>Dates</th>
-                    <th>Prize Pool</th>
-                    <th>Location</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>`;
+            let html = `<div class="custom-table-container"><table class="custom-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Dates</th>
+                        <th>Prize Pool</th>
+                        <th>Location</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>`;
             
             for (let t of tournaments) {
                 // Fetch details to get game name
@@ -216,24 +329,48 @@ async function loadTournamentsList() {
                 const tDetails = await detailsResp.json();
                 
                 const prizePool = tDetails.prize_pool ? `$${parseFloat(tDetails.prize_pool).toLocaleString()}` : 'N/A';
+                
+                let statusBadge = '';
+                const st = tDetails.status.toLowerCase();
+                if (st === 'upcoming') {
+                    statusBadge = `<span class="inline-flex items-center rounded-md bg-blue-500/10 px-2.5 py-0.5 text-xs font-semibold text-blue-400 ring-1 ring-inset ring-blue-500/20">${tDetails.status.toUpperCase()}</span>`;
+                } else if (st === 'ongoing') {
+                    statusBadge = `<span class="inline-flex items-center rounded-md bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-400 ring-1 ring-inset ring-amber-500/20">${tDetails.status.toUpperCase()}</span>`;
+                } else {
+                    statusBadge = `<span class="inline-flex items-center rounded-md bg-zinc-500/10 px-2.5 py-0.5 text-xs font-semibold text-zinc-400 ring-1 ring-inset ring-zinc-500/20">${tDetails.status.toUpperCase()}</span>`;
+                }
+
                 html += `<tr>
-                    <td>${tDetails.tournament_name}</td>
-                    <td>${tDetails.start_date} to ${tDetails.end_date}</td>
-                    <td>${prizePool}</td>
-                    <td>${tDetails.location || 'Online'}</td>
-                    <td>${tDetails.status.toUpperCase()}</td>
-                    <td><a href="tournament_details.html?id=${tDetails.tournament_id}">View</a></td>
+                    <td class="font-semibold text-zinc-100">${tDetails.tournament_name}</td>
+                    <td class="text-zinc-400 text-xs">${tDetails.start_date} to ${tDetails.end_date}</td>
+                    <td class="text-violet-400 font-bold">${prizePool}</td>
+                    <td class="text-zinc-300">${tDetails.location || 'Online'}</td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        <a href="tournament_details.html?id=${tDetails.tournament_id}" class="text-violet-400 hover:text-violet-300 font-semibold hover:underline flex items-center gap-1 text-xs">
+                            View <i data-lucide="chevron-right" class="size-3"></i>
+                        </a>
+                    </td>
                 </tr>`;
             }
-            html += '</table>';
+            html += '</tbody></table></div>';
             container.innerHTML = html;
         } else {
-            container.innerHTML = '<p>No tournaments found.</p>';
+            container.innerHTML = `
+                <div class="glass-card rounded-xl p-8 text-center text-zinc-500 italic">
+                    No tournaments registered.
+                </div>
+            `;
         }
     } catch (error) {
         console.error('Error loading tournaments:', error);
-        document.getElementById('tournaments-list').innerHTML = '<p>Error loading tournaments.</p>';
+        container.innerHTML = `
+            <div class="glass-card border-rose-500/20 bg-rose-500/5 text-rose-400 rounded-xl p-6 text-center text-sm font-medium">
+                Failed to load tournaments.
+            </div>
+        `;
     }
+    renderIcons();
 }
 
 async function handleAddTournament(e) {
@@ -257,53 +394,69 @@ async function handleAddTournament(e) {
         });
         
         if (response.ok) {
-            msgDiv.innerHTML = '<span style="color: green;">Tournament added successfully!</span>';
+            msgDiv.innerHTML = '<span class="inline-flex items-center rounded-md bg-emerald-500/10 px-3 py-1.5 text-sm font-medium text-emerald-400 ring-1 ring-inset ring-emerald-500/20">Tournament added successfully!</span>';
             document.getElementById('add-tournament-form').reset();
             loadTournamentsList();
         } else {
             const error = await response.json();
-            msgDiv.innerHTML = `<span style="color: red;">Error: ${error.detail || 'Failed to add tournament'}</span>`;
+            msgDiv.innerHTML = `<span class="inline-flex items-center rounded-md bg-rose-500/10 px-3 py-1.5 text-sm font-medium text-rose-400 ring-1 ring-inset ring-rose-500/20">Error: ${error.detail || 'Failed to add tournament'}</span>`;
         }
     } catch (err) {
-        msgDiv.innerHTML = '<span style="color: red;">Failed to connect to server</span>';
+        msgDiv.innerHTML = '<span class="inline-flex items-center rounded-md bg-rose-500/10 px-3 py-1.5 text-sm font-medium text-rose-400 ring-1 ring-inset ring-rose-500/20">Failed to connect to server</span>';
     }
 }
 
 // Teams Page Functions
 async function loadTeamsList() {
+    const container = document.getElementById('teams-list');
     try {
         const response = await fetch(`${API_BASE_URL}/teams`);
         const teams = await response.json();
-        const container = document.getElementById('teams-list');
         
         if (teams.length > 0) {
-            let html = `<table>
-                <tr>
-                    <th>Name</th>
-                    <th>Game</th>
-                    <th>Coach</th>
-                    <th>Players</th>
-                    <th>Actions</th>
-                </tr>`;
+            let html = `<div class="custom-table-container"><table class="custom-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Game Discipline</th>
+                        <th>Head Coach</th>
+                        <th>Roster Size</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>`;
             
             teams.forEach(t => {
                 html += `<tr>
-                    <td>${t.team_name}</td>
-                    <td>${t.game_name}</td>
-                    <td>${t.coach_name || 'N/A'}</td>
-                    <td>${t.player_count} players</td>
-                    <td><a href="team_details.html?id=${t.team_id}">View</a></td>
+                    <td class="font-semibold text-zinc-100">${t.team_name}</td>
+                    <td class="text-zinc-300">${t.game_name}</td>
+                    <td class="text-zinc-400">${t.coach_name || 'N/A'}</td>
+                    <td><span class="inline-flex items-center rounded bg-zinc-800 px-2 py-0.5 text-xs font-medium text-zinc-300">${t.player_count} players</span></td>
+                    <td>
+                        <a href="team_details.html?id=${t.team_id}" class="text-violet-400 hover:text-violet-300 font-semibold hover:underline flex items-center gap-1 text-xs">
+                            View Details <i data-lucide="chevron-right" class="size-3"></i>
+                        </a>
+                    </td>
                 </tr>`;
             });
-            html += '</table>';
+            html += '</tbody></table></div>';
             container.innerHTML = html;
         } else {
-            container.innerHTML = '<p>No teams found.</p>';
+            container.innerHTML = `
+                <div class="glass-card rounded-xl p-8 text-center text-zinc-500 italic">
+                    No teams registered.
+                </div>
+            `;
         }
     } catch (error) {
         console.error('Error loading teams:', error);
-        document.getElementById('teams-list').innerHTML = '<p>Error loading teams.</p>';
+        container.innerHTML = `
+            <div class="glass-card border-rose-500/20 bg-rose-500/5 text-rose-400 rounded-xl p-6 text-center text-sm font-medium">
+                Failed to load teams.
+            </div>
+        `;
     }
+    renderIcons();
 }
 
 async function handleAddTeam(e) {
@@ -323,57 +476,73 @@ async function handleAddTeam(e) {
         });
         
         if (response.ok) {
-            msgDiv.innerHTML = '<span style="color: green;">Team added successfully!</span>';
+            msgDiv.innerHTML = '<span class="inline-flex items-center rounded-md bg-emerald-500/10 px-3 py-1.5 text-sm font-medium text-emerald-400 ring-1 ring-inset ring-emerald-500/20">Team added successfully!</span>';
             document.getElementById('add-team-form').reset();
             loadTeamsList();
         } else {
             const error = await response.json();
-            msgDiv.innerHTML = `<span style="color: red;">Error: ${error.detail || 'Failed to add team'}</span>`;
+            msgDiv.innerHTML = `<span class="inline-flex items-center rounded-md bg-rose-500/10 px-3 py-1.5 text-sm font-medium text-rose-400 ring-1 ring-inset ring-rose-500/20">Error: ${error.detail || 'Failed to add team'}</span>`;
         }
     } catch (err) {
-        msgDiv.innerHTML = '<span style="color: red;">Failed to connect to server</span>';
+        msgDiv.innerHTML = '<span class="inline-flex items-center rounded-md bg-rose-500/10 px-3 py-1.5 text-sm font-medium text-rose-400 ring-1 ring-inset ring-rose-500/20">Failed to connect to server</span>';
     }
 }
 
 // Players Page Functions
 async function loadPlayersList() {
+    const container = document.getElementById('players-list');
     try {
         const response = await fetch(`${API_BASE_URL}/players`);
         const players = await response.json();
-        const container = document.getElementById('players-list');
         
         if (players.length > 0) {
-            let html = `<table>
-                <tr>
-                    <th>Name</th>
-                    <th>In-Game Name</th>
-                    <th>Team</th>
-                    <th>Game</th>
-                    <th>Role</th>
-                    <th>Email</th>
-                    <th>Actions</th>
-                </tr>`;
+            let html = `<div class="custom-table-container"><table class="custom-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>In-Game Name</th>
+                        <th>Team</th>
+                        <th>Game</th>
+                        <th>Role</th>
+                        <th>Email</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>`;
             
             players.forEach(p => {
                 html += `<tr>
-                    <td>${p.player_name}</td>
-                    <td>${p.in_game_name}</td>
-                    <td>${p.team_name}</td>
-                    <td>${p.game_name}</td>
-                    <td>${p.role || 'N/A'}</td>
-                    <td>${p.email || 'N/A'}</td>
-                    <td><a href="player_details.html?id=${p.player_id}">View</a></td>
+                    <td class="font-semibold text-zinc-100">${p.player_name}</td>
+                    <td class="text-violet-400 font-semibold">${p.in_game_name}</td>
+                    <td class="text-zinc-300 font-medium">${p.team_name}</td>
+                    <td class="text-zinc-400 text-xs">${p.game_name}</td>
+                    <td><span class="inline-flex items-center rounded bg-zinc-800 px-2 py-0.5 text-xs font-semibold text-zinc-300">${p.role || 'N/A'}</span></td>
+                    <td class="text-zinc-400 text-xs">${p.email || 'N/A'}</td>
+                    <td>
+                        <a href="player_details.html?id=${p.player_id}" class="text-violet-400 hover:text-violet-300 font-semibold hover:underline flex items-center gap-1 text-xs">
+                            View <i data-lucide="chevron-right" class="size-3"></i>
+                        </a>
+                    </td>
                 </tr>`;
             });
-            html += '</table>';
+            html += '</tbody></table></div>';
             container.innerHTML = html;
         } else {
-            container.innerHTML = '<p>No players found.</p>';
+            container.innerHTML = `
+                <div class="glass-card rounded-xl p-8 text-center text-zinc-500 italic">
+                    No players registered.
+                </div>
+            `;
         }
     } catch (error) {
         console.error('Error loading players:', error);
-        document.getElementById('players-list').innerHTML = '<p>Error loading players.</p>';
+        container.innerHTML = `
+            <div class="glass-card border-rose-500/20 bg-rose-500/5 text-rose-400 rounded-xl p-6 text-center text-sm font-medium">
+                Failed to load players.
+            </div>
+        `;
     }
+    renderIcons();
 }
 
 async function handleAddPlayer(e) {
@@ -396,65 +565,99 @@ async function handleAddPlayer(e) {
         });
         
         if (response.ok) {
-            msgDiv.innerHTML = '<span style="color: green;">Player added successfully!</span>';
+            msgDiv.innerHTML = '<span class="inline-flex items-center rounded-md bg-emerald-500/10 px-3 py-1.5 text-sm font-medium text-emerald-400 ring-1 ring-inset ring-emerald-500/20">Player added successfully!</span>';
             document.getElementById('add-player-form').reset();
             loadPlayersList();
         } else {
             const error = await response.json();
-            msgDiv.innerHTML = `<span style="color: red;">Error: ${error.detail || 'Failed to add player'}</span>`;
+            msgDiv.innerHTML = `<span class="inline-flex items-center rounded-md bg-rose-500/10 px-3 py-1.5 text-sm font-medium text-rose-400 ring-1 ring-inset ring-rose-500/20">Error: ${error.detail || 'Failed to add player'}</span>`;
         }
     } catch (err) {
-        msgDiv.innerHTML = '<span style="color: red;">Failed to connect to server</span>';
+        msgDiv.innerHTML = '<span class="inline-flex items-center rounded-md bg-rose-500/10 px-3 py-1.5 text-sm font-medium text-rose-400 ring-1 ring-inset ring-rose-500/20">Failed to connect to server</span>';
     }
 }
 
 // Matches Page Functions
 async function loadMatchesList() {
+    const container = document.getElementById('matches-list');
+    const role = localStorage.getItem('user_role');
+    
     try {
         const response = await fetch(`${API_BASE_URL}/matches`);
         const matches = await response.json();
-        const container = document.getElementById('matches-list');
         
         if (matches.length > 0) {
-            let html = `<table>
-                <tr>
-                    <th>Tournament</th>
-                    <th>Game</th>
-                    <th>Match</th>
-                    <th>Teams</th>
-                    <th>Score</th>
-                    <th>Winner</th>
-                    <th>Date</th>
-                    <th>Actions</th>
-                </tr>`;
+            let html = `<div class="custom-table-container"><table class="custom-table">
+                <thead>
+                    <tr>
+                        <th>Tournament</th>
+                        <th>Game</th>
+                        <th>Stage</th>
+                        <th>Teams</th>
+                        <th>Score</th>
+                        <th>Winner</th>
+                        <th>Date Scheduled</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>`;
             
             matches.forEach(m => {
                 const date = new Date(m.match_date).toLocaleString();
-                const score = (m.team1_score !== null && m.team2_score !== null) ? `${m.team1_score} - ${m.team2_score}` : 'TBD';
+                const score = (m.team1_score !== null && m.team2_score !== null) ? 
+                    `<span class="bg-zinc-800 text-zinc-150 px-2.5 py-0.5 rounded text-xs font-bold border border-zinc-700/50 whitespace-nowrap">${m.team1_score} - ${m.team2_score}</span>` : 
+                    `<span class="text-zinc-500 text-xs italic font-medium">TBD</span>`;
+                const winner = m.winner_name ? 
+                    `<span class="inline-flex items-center rounded bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/20">${m.winner_name}</span>` : 
+                    `<span class="text-zinc-500 text-xs">-</span>`;
                 
+                // Show Log Result action link only for Admins
+                let actionsHtml = `
+                    <a href="match_result_details.html?match_id=${m.match_id}" class="text-violet-400 hover:text-violet-300 font-semibold hover:underline text-xs flex items-center gap-0.5">
+                        View
+                    </a>`;
+                
+                if (role === 'admin') {
+                    actionsHtml += `
+                        <span class="text-zinc-700">|</span> 
+                        <a href="add_result.html?match_id=${m.match_id}" class="text-violet-400 hover:text-violet-300 font-semibold hover:underline text-xs flex items-center gap-0.5">
+                            Log Result
+                        </a>`;
+                }
+
                 html += `<tr>
-                    <td>${m.tournament_name}</td>
-                    <td>${m.game_name}</td>
-                    <td>${m.stage}</td>
-                    <td>${m.team1_name} vs ${m.team2_name}</td>
+                    <td class="font-semibold text-zinc-150 text-xs">${m.tournament_name}</td>
+                    <td class="text-zinc-300 text-xs">${m.game_name}</td>
+                    <td class="text-zinc-400 font-medium text-xs">${m.stage}</td>
+                    <td class="text-zinc-200 font-semibold">${m.team1_name} <span class="text-zinc-500 font-normal">vs</span> ${m.team2_name}</td>
                     <td>${score}</td>
-                    <td>${m.winner_name}</td>
-                    <td>${date}</td>
+                    <td>${winner}</td>
+                    <td class="text-zinc-400 text-xs">${date}</td>
                     <td>
-                        <a href="match_result_details.html?match_id=${m.match_id}">View Results</a> | 
-                        <a href="add_result.html?match_id=${m.match_id}">Add/Edit Result</a>
+                        <div class="flex items-center gap-2">
+                            ${actionsHtml}
+                        </div>
                     </td>
                 </tr>`;
             });
-            html += '</table>';
+            html += '</tbody></table></div>';
             container.innerHTML = html;
         } else {
-            container.innerHTML = '<p>No matches found.</p>';
+            container.innerHTML = `
+                <div class="glass-card rounded-xl p-8 text-center text-zinc-500 italic">
+                    No matches scheduled.
+                </div>
+            `;
         }
     } catch (error) {
         console.error('Error loading matches:', error);
-        document.getElementById('matches-list').innerHTML = '<p>Error loading matches.</p>';
+        container.innerHTML = `
+            <div class="glass-card border-rose-500/20 bg-rose-500/5 text-rose-400 rounded-xl p-6 text-center text-sm font-medium">
+                Failed to load matches.
+            </div>
+        `;
     }
+    renderIcons();
 }
 
 async function handleAddMatch(e) {
@@ -481,50 +684,62 @@ async function handleAddMatch(e) {
         });
         
         if (response.ok) {
-            msgDiv.innerHTML = '<span style="color: green;">Match scheduled successfully!</span>';
+            msgDiv.innerHTML = '<span class="inline-flex items-center rounded-md bg-emerald-500/10 px-3 py-1.5 text-sm font-medium text-emerald-400 ring-1 ring-inset ring-emerald-500/20">Match scheduled successfully!</span>';
             document.getElementById('add-match-form').reset();
             loadMatchesList();
         } else {
             const error = await response.json();
-            msgDiv.innerHTML = `<span style="color: red;">Error: ${error.detail || 'Failed to schedule match'}</span>`;
+            msgDiv.innerHTML = `<span class="inline-flex items-center rounded-md bg-rose-500/10 px-3 py-1.5 text-sm font-medium text-rose-400 ring-1 ring-inset ring-rose-500/20">Error: ${error.detail || 'Failed to schedule match'}</span>`;
         }
     } catch (err) {
-        msgDiv.innerHTML = '<span style="color: red;">Failed to connect to server</span>';
+        msgDiv.innerHTML = '<span class="inline-flex items-center rounded-md bg-rose-500/10 px-3 py-1.5 text-sm font-medium text-rose-400 ring-1 ring-inset ring-rose-500/20">Failed to connect to server</span>';
     }
 }
 
 // Sponsors Page Functions
 async function loadSponsorsList() {
+    const container = document.getElementById('sponsors-list');
     try {
         const response = await fetch(`${API_BASE_URL}/sponsors`);
         const sponsors = await response.json();
-        const container = document.getElementById('sponsors-list');
         
         if (sponsors.length > 0) {
-            let html = `<table>
-                <tr>
-                    <th>Name</th>
-                    <th>Contact Email</th>
-                    <th>Sponsorship Amount</th>
-                </tr>`;
+            let html = `<div class="custom-table-container"><table class="custom-table">
+                <thead>
+                    <tr>
+                        <th>Sponsor Name</th>
+                        <th>Contact Email</th>
+                        <th>Sponsorship Funding</th>
+                    </tr>
+                </thead>
+                <tbody>`;
             
             sponsors.forEach(s => {
                 const amount = s.sponsorship_amount ? `$${parseFloat(s.sponsorship_amount).toLocaleString(undefined, {minimumFractionDigits: 2})}` : 'N/A';
                 html += `<tr>
-                    <td>${s.sponsor_name}</td>
-                    <td>${s.contact_email || 'N/A'}</td>
-                    <td>${amount}</td>
+                    <td class="font-semibold text-zinc-100">${s.sponsor_name}</td>
+                    <td class="text-zinc-400 text-xs">${s.contact_email || 'N/A'}</td>
+                    <td class="text-emerald-400 font-bold">${amount}</td>
                 </tr>`;
             });
-            html += '</table>';
+            html += '</tbody></table></div>';
             container.innerHTML = html;
         } else {
-            container.innerHTML = '<p>No sponsors found.</p>';
+            container.innerHTML = `
+                <div class="glass-card rounded-xl p-8 text-center text-zinc-500 italic">
+                    No sponsors registered.
+                </div>
+            `;
         }
     } catch (error) {
         console.error('Error loading sponsors:', error);
-        document.getElementById('sponsors-list').innerHTML = '<p>Error loading sponsors.</p>';
+        container.innerHTML = `
+            <div class="glass-card border-rose-500/20 bg-rose-500/5 text-rose-400 rounded-xl p-6 text-center text-sm font-medium">
+                Failed to load sponsors.
+            </div>
+        `;
     }
+    renderIcons();
 }
 
 async function handleAddSponsor(e) {
@@ -544,15 +759,15 @@ async function handleAddSponsor(e) {
         });
         
         if (response.ok) {
-            msgDiv.innerHTML = '<span style="color: green;">Sponsor added successfully!</span>';
+            msgDiv.innerHTML = '<span class="inline-flex items-center rounded-md bg-emerald-500/10 px-3 py-1.5 text-sm font-medium text-emerald-400 ring-1 ring-inset ring-emerald-500/20">Sponsor added successfully!</span>';
             document.getElementById('add-sponsor-form').reset();
             loadSponsorsList();
         } else {
             const error = await response.json();
-            msgDiv.innerHTML = `<span style="color: red;">Error: ${error.detail || 'Failed to add sponsor'}</span>`;
+            msgDiv.innerHTML = `<span class="inline-flex items-center rounded-md bg-rose-500/10 px-3 py-1.5 text-sm font-medium text-rose-400 ring-1 ring-inset ring-rose-500/20">Error: ${error.detail || 'Failed to add sponsor'}</span>`;
         }
     } catch (err) {
-        msgDiv.innerHTML = '<span style="color: red;">Failed to connect to server</span>';
+        msgDiv.innerHTML = '<span class="inline-flex items-center rounded-md bg-rose-500/10 px-3 py-1.5 text-sm font-medium text-rose-400 ring-1 ring-inset ring-rose-500/20">Failed to connect to server</span>';
     }
 }
 
@@ -563,35 +778,53 @@ async function loadTournamentDetails() {
     const container = document.getElementById('details-container');
     
     if (!id) {
-        container.innerHTML = '<p style="color: red;">Tournament ID is missing.</p>';
+        container.innerHTML = '<p class="text-rose-400 text-center font-semibold">Tournament ID is missing.</p>';
         return;
     }
     
     try {
         const response = await fetch(`${API_BASE_URL}/tournaments/${id}`);
         if (!response.ok) {
-            container.innerHTML = '<p style="color: red;">Tournament not found.</p>';
+            container.innerHTML = '<p class="text-rose-400 text-center font-semibold">Tournament not found.</p>';
             return;
         }
         
         const t = await response.json();
         const prizePool = t.prize_pool ? `$${parseFloat(t.prize_pool).toLocaleString()}` : 'N/A';
         
+        let statusBadge = '';
+        const st = t.status.toLowerCase();
+        if (st === 'upcoming') {
+            statusBadge = `<span class="inline-flex items-center rounded-md bg-blue-500/10 px-2.5 py-1 text-xs font-semibold text-blue-400 ring-1 ring-inset ring-blue-500/20">${t.status.toUpperCase()}</span>`;
+        } else if (st === 'ongoing') {
+            statusBadge = `<span class="inline-flex items-center rounded-md bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-400 ring-1 ring-inset ring-amber-500/20">${t.status.toUpperCase()}</span>`;
+        } else {
+            statusBadge = `<span class="inline-flex items-center rounded-md bg-zinc-500/10 px-2.5 py-1 text-xs font-semibold text-zinc-400 ring-1 ring-inset ring-zinc-500/20">${t.status.toUpperCase()}</span>`;
+        }
+
         container.innerHTML = `
-            <div class="card">
-                <h2>${t.tournament_name}</h2>
-                <hr>
-                <p><strong>Game:</strong> ${t.game_name}</p>
-                <p><strong>Start Date:</strong> ${t.start_date}</p>
-                <p><strong>End Date:</strong> ${t.end_date}</p>
-                <p><strong>Prize Pool:</strong> ${prizePool}</p>
-                <p><strong>Location:</strong> ${t.location || 'Online'}</p>
-                <p><strong>Status:</strong> ${t.status.toUpperCase()}</p>
+            <div class="glass-card rounded-xl p-6 md:p-8">
+                <div class="flex justify-between items-center border-b border-zinc-800 pb-4 mb-6">
+                    <h2 class="text-2xl font-bold text-zinc-50">${t.tournament_name}</h2>
+                    ${statusBadge}
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-zinc-300">
+                    <div class="space-y-4">
+                        <p class="flex justify-between border-b border-zinc-800/50 pb-2"><span class="text-zinc-500 flex items-center gap-1.5"><i data-lucide="gamepad-2" class="size-4"></i> Game:</span> <span class="font-semibold text-zinc-200">${t.game_name}</span></p>
+                        <p class="flex justify-between border-b border-zinc-800/50 pb-2"><span class="text-zinc-500 flex items-center gap-1.5"><i data-lucide="calendar" class="size-4"></i> Start Date:</span> <span class="text-zinc-200">${t.start_date}</span></p>
+                        <p class="flex justify-between border-b border-zinc-800/50 pb-2"><span class="text-zinc-500 flex items-center gap-1.5"><i data-lucide="calendar" class="size-4"></i> End Date:</span> <span class="text-zinc-200">${t.end_date}</span></p>
+                    </div>
+                    <div class="space-y-4">
+                        <p class="flex justify-between border-b border-zinc-800/50 pb-2"><span class="text-zinc-500 flex items-center gap-1.5"><i data-lucide="dollar-sign" class="size-4"></i> Prize Pool:</span> <span class="text-violet-400 font-bold">${prizePool}</span></p>
+                        <p class="flex justify-between border-b border-zinc-800/50 pb-2"><span class="text-zinc-500 flex items-center gap-1.5"><i data-lucide="map-pin" class="size-4"></i> Location:</span> <span class="text-zinc-200">${t.location || 'Online'}</span></p>
+                    </div>
+                </div>
             </div>
         `;
     } catch (err) {
-        container.innerHTML = '<p style="color: red;">Error connecting to server</p>';
+        container.innerHTML = '<p class="text-rose-400 text-center font-semibold">Error connecting to server</p>';
     }
+    renderIcons();
 }
 
 async function loadTeamDetails() {
@@ -600,54 +833,67 @@ async function loadTeamDetails() {
     const container = document.getElementById('details-container');
     
     if (!id) {
-        container.innerHTML = '<p style="color: red;">Team ID is missing.</p>';
+        container.innerHTML = '<p class="text-rose-400 text-center font-semibold">Team ID is missing.</p>';
         return;
     }
     
     try {
         const response = await fetch(`${API_BASE_URL}/teams/${id}`);
         if (!response.ok) {
-            container.innerHTML = '<p style="color: red;">Team not found.</p>';
+            container.innerHTML = '<p class="text-rose-400 text-center font-semibold">Team not found.</p>';
             return;
         }
         
         const t = await response.json();
         
-        let playersHtml = '<p>No players in this team yet.</p>';
+        let playersHtml = '<p class="text-zinc-500 italic">No players in this team yet.</p>';
         if (t.players && t.players.length > 0) {
-            playersHtml = `<table>
-                <tr>
-                    <th>Player Name</th>
-                    <th>In-Game Name</th>
-                    <th>Role</th>
-                    <th>Email</th>
-                    <th>Actions</th>
-                </tr>
+            playersHtml = `<div class="custom-table-container"><table class="custom-table">
+                <thead>
+                    <tr>
+                        <th>Player Name</th>
+                        <th>In-Game Name</th>
+                        <th>Role</th>
+                        <th>Email Address</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
                 ${t.players.map(p => `
                     <tr>
-                        <td>${p.player_name}</td>
-                        <td>${p.in_game_name}</td>
-                        <td>${p.role || 'N/A'}</td>
-                        <td>${p.email || 'N/A'}</td>
-                        <td><a href="player_details.html?id=${p.player_id}">View Details</a></td>
+                        <td class="font-semibold text-zinc-100">${p.player_name}</td>
+                        <td class="text-violet-400 font-semibold">${p.in_game_name}</td>
+                        <td><span class="inline-flex items-center rounded bg-zinc-800 px-2 py-0.5 text-xs font-medium text-zinc-300">${p.role || 'N/A'}</span></td>
+                        <td class="text-zinc-400 text-xs">${p.email || 'N/A'}</td>
+                        <td>
+                            <a href="player_details.html?id=${p.player_id}" class="text-violet-400 hover:text-violet-300 font-semibold hover:underline text-xs flex items-center gap-0.5">
+                                View Profile <i data-lucide="chevron-right" class="size-3"></i>
+                            </a>
+                        </td>
                     </tr>
                 `).join('')}
-            </table>`;
+                </tbody>
+            </table></div>`;
         }
         
         container.innerHTML = `
-            <div class="card" style="margin-bottom: 20px;">
-                <h2>${t.team_name}</h2>
-                <hr>
-                <p><strong>Game:</strong> ${t.game_name}</p>
-                <p><strong>Coach Name:</strong> ${t.coach_name || 'N/A'}</p>
+            <div class="glass-card rounded-xl p-6 md:p-8 mb-8">
+                <h2 class="text-2xl font-bold text-zinc-50 border-b border-zinc-800 pb-4 mb-4">${t.team_name}</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-zinc-300">
+                    <p class="flex justify-between border-b border-zinc-850 pb-2 md:pb-0"><span class="text-zinc-500 flex items-center gap-1.5"><i data-lucide="gamepad-2" class="size-4"></i> Game Representing:</span> <span class="font-semibold text-zinc-200">${t.game_name}</span></p>
+                    <p class="flex justify-between"><span class="text-zinc-500 flex items-center gap-1.5"><i data-lucide="award" class="size-4"></i> Head Coach:</span> <span class="text-zinc-200 font-semibold">${t.coach_name || 'N/A'}</span></p>
+                </div>
             </div>
-            <h3>Roster / Players</h3>
+            <h3 class="text-xl font-bold text-zinc-50 mb-4 flex items-center gap-2">
+                <i data-lucide="users" class="text-violet-500 size-5"></i>
+                Active Roster
+            </h3>
             ${playersHtml}
         `;
     } catch (err) {
-        container.innerHTML = '<p style="color: red;">Error connecting to server</p>';
+        container.innerHTML = '<p class="text-rose-400 text-center font-semibold">Error connecting to server</p>';
     }
+    renderIcons();
 }
 
 async function loadPlayerDetails() {
@@ -656,34 +902,43 @@ async function loadPlayerDetails() {
     const container = document.getElementById('details-container');
     
     if (!id) {
-        container.innerHTML = '<p style="color: red;">Player ID is missing.</p>';
+        container.innerHTML = '<p class="text-rose-400 text-center font-semibold">Player ID is missing.</p>';
         return;
     }
     
     try {
         const response = await fetch(`${API_BASE_URL}/players/${id}`);
         if (!response.ok) {
-            container.innerHTML = '<p style="color: red;">Player not found.</p>';
+            container.innerHTML = '<p class="text-rose-400 text-center font-semibold">Player not found.</p>';
             return;
         }
         
         const p = await response.json();
         
         container.innerHTML = `
-            <div class="card">
-                <h2>Player: ${p.player_name}</h2>
-                <hr>
-                <p><strong>In-Game Name:</strong> ${p.in_game_name}</p>
-                <p><strong>Team:</strong> ${p.team_name}</p>
-                <p><strong>Game:</strong> ${p.game_name}</p>
-                <p><strong>Role:</strong> ${p.role || 'N/A'}</p>
-                <p><strong>Email:</strong> ${p.email || 'N/A'}</p>
-                <p><strong>Date of Birth:</strong> ${p.date_of_birth || 'N/A'}</p>
+            <div class="glass-card rounded-xl p-6 md:p-8 max-w-2xl mx-auto">
+                <div class="flex items-center gap-4 border-b border-zinc-800 pb-6 mb-6">
+                    <div class="size-14 rounded-full bg-violet-600/10 border border-violet-500/20 flex items-center justify-center text-violet-400 text-2xl font-bold">
+                        ${p.player_name.charAt(0)}
+                    </div>
+                    <div>
+                        <h2 class="text-2xl font-bold text-zinc-50">${p.player_name}</h2>
+                        <p class="text-violet-400 font-semibold">${p.in_game_name}</p>
+                    </div>
+                </div>
+                <div class="space-y-4 text-sm text-zinc-300">
+                    <p class="flex justify-between border-b border-zinc-800/50 pb-2"><span class="text-zinc-500 flex items-center gap-1.5"><i data-lucide="shield" class="size-4"></i> Current Team:</span> <span class="font-semibold text-zinc-200">${p.team_name}</span></p>
+                    <p class="flex justify-between border-b border-zinc-800/50 pb-2"><span class="text-zinc-500 flex items-center gap-1.5"><i data-lucide="gamepad-2" class="size-4"></i> Game discipline:</span> <span class="text-zinc-200">${p.game_name}</span></p>
+                    <p class="flex justify-between border-b border-zinc-800/50 pb-2"><span class="text-zinc-500 flex items-center gap-1.5"><i data-lucide="star" class="size-4"></i> Roster Role:</span> <span class="inline-flex items-center rounded bg-zinc-800 px-2 py-0.5 text-xs font-semibold text-zinc-300">${p.role || 'N/A'}</span></p>
+                    <p class="flex justify-between border-b border-zinc-800/50 pb-2"><span class="text-zinc-500 flex items-center gap-1.5"><i data-lucide="mail" class="size-4"></i> Email Address:</span> <span class="text-zinc-200 text-xs">${p.email || 'N/A'}</span></p>
+                    <p class="flex justify-between"><span class="text-zinc-500 flex items-center gap-1.5"><i data-lucide="calendar" class="size-4"></i> Date of Birth:</span> <span class="text-zinc-200">${p.date_of_birth || 'N/A'}</span></p>
+                </div>
             </div>
         `;
     } catch (err) {
-        container.innerHTML = '<p style="color: red;">Error connecting to server</p>';
+        container.innerHTML = '<p class="text-rose-400 text-center font-semibold">Error connecting to server</p>';
     }
+    renderIcons();
 }
 
 async function loadMatchResultDetails() {
@@ -692,14 +947,14 @@ async function loadMatchResultDetails() {
     const container = document.getElementById('details-container');
     
     if (!id) {
-        container.innerHTML = '<p style="color: red;">Match ID is missing.</p>';
+        container.innerHTML = '<p class="text-rose-400 text-center font-semibold">Match ID is missing.</p>';
         return;
     }
     
     try {
         const response = await fetch(`${API_BASE_URL}/matches/${id}`);
         if (!response.ok) {
-            container.innerHTML = '<p style="color: red;">Match details not found.</p>';
+            container.innerHTML = '<p class="text-rose-400 text-center font-semibold">Match details not found.</p>';
             return;
         }
         
@@ -708,21 +963,37 @@ async function loadMatchResultDetails() {
         const date = new Date(m.match_date).toLocaleString();
         
         container.innerHTML = `
-            <div class="card">
-                <h2>Match: ${m.team1_name} vs ${m.team2_name}</h2>
-                <hr>
-                <p><strong>Tournament:</strong> ${m.tournament_name}</p>
-                <p><strong>Game:</strong> ${m.game_name}</p>
-                <p><strong>Stage:</strong> ${m.stage}</p>
-                <p><strong>Date & Time:</strong> ${date}</p>
-                <p><strong>Scores:</strong> ${score}</p>
-                <p><strong>Winner:</strong> ${m.winner_name}</p>
-                <p><strong>Match Duration:</strong> ${m.match_duration || 'N/A'}</p>
+            <div class="glass-card rounded-xl p-6 md:p-8 max-w-3xl mx-auto">
+                <div class="text-center mb-6">
+                    <span class="inline-flex items-center rounded-md bg-zinc-800 px-3 py-1 text-xs font-semibold text-zinc-300 border border-zinc-700/50 uppercase tracking-wider">${m.stage}</span>
+                    <p class="text-zinc-500 text-xs mt-2 font-medium">${date}</p>
+                </div>
+                
+                <div class="flex items-center justify-between gap-4 py-8 px-4 border-y border-zinc-850 mb-6">
+                    <div class="flex-1 text-right">
+                        <h3 class="text-lg md:text-xl font-bold text-zinc-50">${m.team1_name}</h3>
+                    </div>
+                    <div class="flex items-center gap-3 bg-zinc-800/50 px-5 py-2.5 rounded-lg border border-zinc-700/50 text-xl md:text-2xl font-bold text-zinc-100 shadow-inner">
+                        <span>${m.team1_score !== null ? m.team1_score : '-'}</span>
+                        <span class="text-zinc-600">:</span>
+                        <span>${m.team2_score !== null ? m.team2_score : '-'}</span>
+                    </div>
+                    <div class="flex-1 text-left">
+                        <h3 class="text-lg md:text-xl font-bold text-zinc-50">${m.team2_name}</h3>
+                    </div>
+                </div>
+                
+                <div class="space-y-4 text-sm text-zinc-300">
+                    <p class="flex justify-between border-b border-zinc-800/50 pb-2"><span class="text-zinc-500 flex items-center gap-1.5"><i data-lucide="award" class="size-4"></i> Tournament Scope:</span> <span class="font-semibold text-zinc-200">${m.tournament_name} (${m.game_name})</span></p>
+                    <p class="flex justify-between border-b border-zinc-800/50 pb-2"><span class="text-zinc-500 flex items-center gap-1.5"><i data-lucide="crown" class="size-4"></i> Match Winner:</span> <span class="inline-flex items-center rounded bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/20">${m.winner_name || 'TBD'}</span></p>
+                    <p class="flex justify-between"><span class="text-zinc-500 flex items-center gap-1.5"><i data-lucide="clock" class="size-4"></i> Match Duration:</span> <span class="text-zinc-200 font-medium">${m.match_duration || 'N/A'}</span></p>
+                </div>
             </div>
         `;
     } catch (err) {
-        container.innerHTML = '<p style="color: red;">Error connecting to server</p>';
+        container.innerHTML = '<p class="text-rose-400 text-center font-semibold">Error connecting to server</p>';
     }
+    renderIcons();
 }
 
 // Add/Edit Result Form Loaders and Actions
@@ -732,14 +1003,14 @@ async function loadMatchInfoForResultForm() {
     const summaryCard = document.getElementById('match-summary-card');
     
     if (!id) {
-        summaryCard.innerHTML = '<p style="color: red;">Match ID is missing.</p>';
+        summaryCard.innerHTML = '<p class="text-rose-400 text-center font-semibold">Match ID is missing.</p>';
         return;
     }
     
     try {
         const response = await fetch(`${API_BASE_URL}/matches/${id}`);
         if (!response.ok) {
-            summaryCard.innerHTML = '<p style="color: red;">Match not found.</p>';
+            summaryCard.innerHTML = '<p class="text-rose-400 text-center font-semibold">Match not found.</p>';
             return;
         }
         
@@ -747,9 +1018,14 @@ async function loadMatchInfoForResultForm() {
         const date = new Date(m.match_date).toLocaleString();
         
         summaryCard.innerHTML = `
-            <h3>${m.team1_name} vs ${m.team2_name}</h3>
-            <p><strong>Tournament:</strong> ${m.tournament_name} | <strong>Game:</strong> ${m.game_name}</p>
-            <p><strong>Stage:</strong> ${m.stage} | <strong>Scheduled:</strong> ${date}</p>
+            <div class="flex items-center justify-between border-b border-zinc-800 pb-3 mb-3">
+                <h3 class="font-bold text-zinc-150">${m.team1_name} <span class="text-zinc-500">vs</span> ${m.team2_name}</h3>
+                <span class="inline-flex items-center rounded bg-zinc-800 px-2 py-0.5 text-xs font-semibold text-zinc-400 border border-zinc-700/50">${m.stage}</span>
+            </div>
+            <div class="text-xs text-zinc-400 space-y-2">
+                <p class="flex items-center gap-1.5"><i data-lucide="award" class="size-4 text-zinc-500"></i> <strong>Tournament:</strong> ${m.tournament_name} | <strong>Game:</strong> ${m.game_name}</p>
+                <p class="flex items-center gap-1.5"><i data-lucide="clock" class="size-4 text-zinc-500"></i> <strong>Scheduled Time:</strong> ${date}</p>
+            </div>
         `;
         
         // Setup Winner select options
@@ -785,8 +1061,9 @@ async function loadMatchInfoForResultForm() {
             document.getElementById('duration').value = m.match_duration;
         }
     } catch (err) {
-        summaryCard.innerHTML = '<p style="color: red;">Error connecting to server</p>';
+        summaryCard.innerHTML = '<p class="text-rose-400 text-center font-semibold">Error connecting to server</p>';
     }
+    renderIcons();
 }
 
 async function handleAddResult(e) {
@@ -810,15 +1087,15 @@ async function handleAddResult(e) {
         });
         
         if (response.ok) {
-            msgDiv.innerHTML = '<span style="color: green;">Match result updated successfully!</span>';
+            msgDiv.innerHTML = '<span class="inline-flex items-center rounded-md bg-emerald-500/10 px-3 py-1.5 text-sm font-medium text-emerald-400 ring-1 ring-inset ring-emerald-500/20">Match result updated successfully!</span>';
             setTimeout(() => {
                 window.location.href = 'matches.html';
             }, 1000);
         } else {
             const error = await response.json();
-            msgDiv.innerHTML = `<span style="color: red;">Error: ${error.detail || 'Failed to update result'}</span>`;
+            msgDiv.innerHTML = `<span class="inline-flex items-center rounded-md bg-rose-500/10 px-3 py-1.5 text-sm font-medium text-rose-400 ring-1 ring-inset ring-rose-500/20">Error: ${error.detail || 'Failed to update result'}</span>`;
         }
     } catch (err) {
-        msgDiv.innerHTML = '<span style="color: red;">Failed to connect to server</span>';
+        msgDiv.innerHTML = '<span class="inline-flex items-center rounded-md bg-rose-500/10 px-3 py-1.5 text-sm font-medium text-rose-400 ring-1 ring-inset ring-rose-500/20">Failed to connect to server</span>';
     }
 }

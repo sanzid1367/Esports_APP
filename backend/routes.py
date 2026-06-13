@@ -13,6 +13,14 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     query = select(models.AdminUser).where(models.AdminUser.username == form_data.username)
     result = await db.execute(query)
     user = result.scalars().first()
+    role = "admin"
+    
+    if not user:
+        query = select(models.RegularUser).where(models.RegularUser.username == form_data.username)
+        result = await db.execute(query)
+        user = result.scalars().first()
+        role = "user"
+        
     if not user or not auth.verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -21,9 +29,9 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         )
     access_token_expires = timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = auth.create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
+        data={"sub": user.username, "role": role}, expires_delta=access_token_expires
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "token_type": "bearer", "role": role}
 
 @router.post("/admin/setup")
 async def setup_admin(db: AsyncSession = Depends(database.get_db)):
@@ -38,6 +46,21 @@ async def setup_admin(db: AsyncSession = Depends(database.get_db)):
     db.add(new_admin)
     await db.commit()
     return {"msg": "Admin created with username 'admin' and password 'admin123'"}
+
+@router.post("/user/setup")
+async def setup_user(db: AsyncSession = Depends(database.get_db)):
+    query = select(models.RegularUser).where(models.RegularUser.username == 'user')
+    result = await db.execute(query)
+    user = result.scalars().first()
+    if user:
+        return {"msg": "User already exists"}
+    
+    hashed_password = auth.get_password_hash("user123")
+    new_user = models.RegularUser(username="user", hashed_password=hashed_password)
+    db.add(new_user)
+    await db.commit()
+    return {"msg": "User created with username 'user' and password 'user123'"}
+
 
 @router.get("/dashboard-stats", response_model=schemas.DashboardStats)
 async def get_dashboard_stats(db: AsyncSession = Depends(database.get_db)):

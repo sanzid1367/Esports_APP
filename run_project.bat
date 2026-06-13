@@ -15,7 +15,7 @@ timeout /t 2 /nobreak >nul
 
 :: Open the Frontend Dashboard in the default browser
 echo Opening Frontend Dashboard...
-start "" "%~dp0frontend\index.html"
+start "" "%~dp0frontend\admin.html"
 
 echo ==========================================================
 echo System started successfully!
