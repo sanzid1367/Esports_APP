@@ -1,101 +1,95 @@
-# 🎮 E-Sports Tournament Management System
-
----
-
-## 🏫 Department Information
-**Department of Computer Science and Engineering**  
-**Course Code:** CSE 2291  
-**Course Title:** Software Development Lab 2  
-**Project Title:** E-sports Tournament Management System  
-
----
-
-## 📌 Submitted To
-**Amir Labib Khan**  
-Lecturer  
-Department of Computer Science and Engineering  
-Northern University Bangladesh  
-
----
-
-## ✍️ Submitted By
-- **Md Al Amin** — ID: 41230301816  
-- **Sanzid Zaman** — ID: 41230301367  
-- **Md. Imran Hosen** — ID: 41230301851  
+# 🎮 E-Sports Tournament Management System (Python / FastAPI)
 
 ---
 
 ## 🚀 Project Overview
-This project is a **Esports Tournament Management System** developed using **PHP & MySQL**.  
-It allows management of:
+This is the **modern, API-driven version** of the E-Sports Tournament Management System. It uses a **Python FastAPI** backend to manage the database and serve API requests, and a vanilla **HTML/CSS/JS** frontend that communicates with the API.
+
+This system allows the management of:
 - Players 👤
 - Teams 🏆
 - Matches ⚔️
 - Tournaments 🗓️
 - Results 📊
-
----
-
-## 🛠️ Features
-- Add & manage players
-- Create & manage teams
-- Organize tournaments
-- Match scheduling system
-- Store and view results
+- Sponsors 🤝
 
 ---
 
 ## 🖥️ Technologies Used
-- **PHP**
-- **MySQL**
-- **CSS**
-- **HTML**
+- **Backend:** Python 3.8+, FastAPI, SQLAlchemy (Async), Uvicorn, aiomysql
+- **Database:** MySQL
+- **Frontend:** HTML, CSS, JavaScript (Vanilla)
 
 ---
 
 ## 📂 Project Structure
 ```bash
-E_Sports_Tournament_Management/
-│── esports_python_app/  # Python FastAPI version
-│   ├── backend/         # FastAPI backend source
-│   └── frontend/        # HTML/JS frontend pages
-│── css/                 # PHP app stylesheets
-│── index.php            # PHP app pages
-│── run_project.bat      # Quick-launch batch file
-│── esports_management.sql # Database schema and sample data
+esports_python_app/
+│── backend/             # FastAPI backend source code
+│   ├── main.py          # FastAPI application setup
+│   ├── database.py      # Database connection setup
+│   ├── models.py        # SQLAlchemy models
+│   ├── schemas.py       # Pydantic models for validation
+│   └── routes.py        # API endpoints
+│── frontend/            # HTML/JS frontend pages
+│   ├── css/             # Stylesheets
+│   ├── js/              # Client-side JavaScript
+│   └── *.html           # View templates
+│── requirements.txt     # Python dependencies
+└── run_project.bat      # Quick-launch batch file for Windows
 ```
 
 ---
 
-## ⚙️ How to Run the Project
-
-Both versions require a **MySQL Database** to store the tournament data.
+## ⚙️ How to Run the Project (Step by Step)
 
 ### Step 1: Set Up MySQL Database
 1. Start your local MySQL server (e.g., using **XAMPP**, **WampServer**, or **Laragon**).
 2. Open **phpMyAdmin** (`http://localhost/phpmyadmin`) or any SQL client.
-3. Create a database named `esports_tournament`.
-4. Import the [esports_management.sql](file:///c:/Users/Sanzid%20Zaman/Downloads/E_Sports_Tournament_Management-main/E_Sports_Tournament_Management-main/esports_management.sql) file into that database.
+3. Create an empty database named `esports_tournament`.
+*(Note: The FastAPI backend will automatically create all the necessary tables when it starts up.)*
+
+### Step 2: Set Up the Backend Environment
+1. Open a terminal or command prompt in the `esports_python_app` directory.
+2. Create a virtual environment (optional but recommended):
+   ```bash
+   python -m venv venv
+   ```
+3. Activate the virtual environment:
+   - **Windows:** `venv\Scripts\activate`
+   - **Mac/Linux:** `source venv/bin/activate`
+4. Install the required Python dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+### Step 3: Run the Application
+
+#### Option A: Using the Batch File (Windows Only - Recommended)
+1. Double-click the **`run_project.bat`** file located in the `esports_python_app` directory.
+   - This script will automatically activate the virtual environment, start the FastAPI backend server on port 8000, and open the frontend dashboard in your default browser.
+
+#### Option B: Manual Start (All Operating Systems)
+1. **Start the Backend:**
+   In your terminal (with the virtual environment activated), navigate to the `backend` directory and start the server:
+   ```bash
+   cd backend
+   uvicorn main:app --reload --port 8000
+   ```
+   *The backend API will be available at `http://127.0.0.1:8000`.*
+2. **Open the Frontend:**
+   Open the `frontend/index.html` file directly in your preferred web browser.
 
 ---
 
-### Option A: Run the Python FastAPI Version (Recommended)
-
-To run the modern API-driven version:
-1. Double-click the **[run_project.bat](file:///c:/Users/Sanzid%20Zaman/Downloads/E_Sports_Tournament_Management-main/E_Sports_Tournament_Management-main/run_project.bat)** file at the root of the project.
-   - This will start the FastAPI backend server on port 8000 and open the frontend dashboard in your default browser.
-
-#### Demo Admin Credentials:
-- **Username**: `admin`
-- **Password**: `admin123`
+### Demo Admin Credentials
+Once the frontend is running, you can log in to the admin panel using the following demo credentials (if authentication is configured in the database):
+- **Username:** `admin`
+- **Password:** `admin123`
 
 ---
 
-### Option B: Run the PHP Version
-
-To run the traditional PHP version:
-1. Copy the project files to your server's root folder (e.g., `htdocs` for XAMPP).
-2. Open your browser and navigate to:
-   ```
-   http://localhost/E_Sports_Tournament_Management/index.php
-   ```
+## 🛠️ API Documentation
+Once the backend is running, you can view the interactive API documentation automatically generated by FastAPI:
+- **Swagger UI:** `http://127.0.0.1:8000/docs`
+- **ReDoc:** `http://127.0.0.1:8000/redoc`
