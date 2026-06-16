@@ -102,20 +102,6 @@ async def get_upcoming_tournaments(db: AsyncSession = Depends(database.get_db)):
 @router.get("/recent-matches", response_model=list[schemas.RecentMatchResult])
 async def get_recent_matches(db: AsyncSession = Depends(database.get_db)):
     query = (
-        select(models.Match, models.MatchResult, models.Team.team_name.label("team1_name"), 
-               models.Team.team_name.label("team2_name"), models.Team.team_name.label("winner_name"),
-               models.Game.game_name, models.Tournament.tournament_name)
-        .join(models.MatchResult, models.Match.match_id == models.MatchResult.match_id)
-        .join(models.Team, models.Match.team1_id == models.Team.team_id)
-        .join(models.Team, models.Match.team2_id == models.Team.team_id)
-        .join(models.Team, models.MatchResult.winner_id == models.Team.team_id)
-        .join(models.Tournament, models.Match.tournament_id == models.Tournament.tournament_id)
-        .join(models.Game, models.Tournament.game_id == models.Game.game_id)
-        .order_by(models.Match.match_date.desc())
-        .limit(5)
-    )
-    # The SQLAlchemy core query with joins requires care. Let's use a simpler ORM approach.
-    query = (
         select(models.MatchResult)
         .join(models.Match)
         .order_by(models.Match.match_date.desc())
@@ -160,7 +146,7 @@ async def get_tournaments(db: AsyncSession = Depends(database.get_db)):
 
 @router.post("/tournaments", response_model=schemas.TournamentOut)
 async def create_tournament(t: schemas.TournamentBase, current_admin: models.AdminUser = Depends(auth.get_current_admin), db: AsyncSession = Depends(database.get_db)):
-    new_t = models.Tournament(**t.dict())
+    new_t = models.Tournament(**t.model_dump())
     db.add(new_t)
     await db.commit()
     await db.refresh(new_t)
@@ -204,7 +190,7 @@ async def get_teams(db: AsyncSession = Depends(database.get_db)):
 
 @router.post("/teams", response_model=schemas.TeamOut)
 async def create_team(t: schemas.TeamBase, current_admin: models.AdminUser = Depends(auth.get_current_admin), db: AsyncSession = Depends(database.get_db)):
-    new_team = models.Team(**t.dict())
+    new_team = models.Team(**t.model_dump())
     db.add(new_team)
     await db.commit()
     await db.refresh(new_team)

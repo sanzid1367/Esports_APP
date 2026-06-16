@@ -50,3 +50,7 @@ async def on_startup():
 @app.get("/")
 def root():
     return {"message": "Welcome to the E-Sports Tournament API"}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)

@@ -76,7 +76,7 @@ esports_python_app/
    In your terminal (with the virtual environment activated), navigate to the `backend` directory and start the server:
    ```bash
    cd backend
-   uvicorn main:app --reload --port 8000
+   python main.py
    ```
    *The backend API will be available at `http://127.0.0.1:8000`.*
 2. **Open the Frontend:**

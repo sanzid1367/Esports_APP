@@ -8,7 +8,7 @@ echo ==========================================================
 
 :: Start FastAPI backend in a new command window
 echo Launching FastAPI Backend...
-start "" cmd /k "cd /d "%~dp0backend" && call ..\venv\Scripts\activate && uvicorn main:app --reload --port 8000"
+start "" cmd /k "cd /d "%~dp0backend" && call ..\venv\Scripts\activate && python main.py"
 
 :: Wait 2 seconds for server to initialize
 timeout /t 2 /nobreak >nul
